@@ -1,6 +1,6 @@
 # unifies the api to the standard library
 
-import Uri,httpcore, streams
+import Uri, httpcore, streams
 import asyncjs #https://nim-lang.org/docs/asyncjs.html
                # just overried the same syntax of httpclient but using requests
 
@@ -18,8 +18,7 @@ type
     responseText, statusText: cstring
 
 
-const defUserAgent* = "Nim httpclient/" & NimVersion
-
+const defUserAgent* = "Nim chttpclient/" & NimVersion
 
 type
   HttpClientBase* = ref object of JsRoot
@@ -62,7 +61,7 @@ proc code*(response: Response | AsyncResponse): HttpCode
            
 proc request*(client: HttpClient | AsyncHttpClient, url: string,
               httpMethod: string, body = "",
-              headers: HttpHeaders = nil): Future[Response]
+              headers: HttpHeaders = HttpHeaders(nil)): Future[Response]
               {.async.} =
 
   var this {.importc: "this".}: ThisObj 
