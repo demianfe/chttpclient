@@ -1,6 +1,6 @@
 # unifies the api to the standard library
 
-import Uri, httpcore, streams
+import Uri, httpcore, streams, strutils
 import asyncjs #https://nim-lang.org/docs/asyncjs.html
                # just overried the same syntax of httpclient but using requests
 
@@ -19,6 +19,7 @@ type
 
 
 const defUserAgent* = "Nim chttpclient/" & NimVersion
+
 
 type
   HttpClientBase* = ref object of JsRoot
@@ -43,6 +44,7 @@ type
 
 # binding
 proc setRequestHeader(r: HttpRequest; a, b: cstring) {.importcpp: "#.setRequestHeader(@)".}
+proc getAllResponseHeaders(r: HttpRequest): cstring {.importcpp: "#.getAllResponseHeaders(@)".}
 proc statechange(r: HttpRequest; cb: proc()) {.importcpp: "#.onreadystatechange = #".}
 proc send(r: HttpRequest; data: cstring) {.importcpp: "#.send(#)".}
 proc send(r: HttpRequest, data: Blob) {.importcpp: "#.send(#)".}
@@ -58,13 +60,23 @@ proc code*(response: Response | AsyncResponse): HttpCode
   ## corresponding ``HttpCode``.
   return response.status[0 .. 2].parseInt.HttpCode
 
+
+
+proc extractHeaders(ajax: HttpRequest): HttpHeaders =
+  result = newHttpHeaders()
+  let hcstr = $(ajax.getAllResponseHeaders())
+  for item in hcstr.split("\n"):
+    if item.strip() != "":
+      let k, v = item.split(":")
+      result[k[0].strip()] = v[1].replace("\c", "").strip()
+               
            
 proc request*(client: HttpClient | AsyncHttpClient, url: string,
               httpMethod: string, body = "",
               headers: HttpHeaders = HttpHeaders(nil)): Future[Response]
               {.async.} =
 
-  var this {.importc: "this".}: ThisObj 
+  var this {.importc: "this".}: ThisObj
   result = await newPromise() do (resolve: proc(response: Response)):
     let ajax = newRequest()
 
@@ -74,19 +86,22 @@ proc request*(client: HttpClient | AsyncHttpClient, url: string,
     
     ajax.statechange proc() =    
       if this.readyState == 4:
+        
         if this.status == 200:
           var resp = Response()
+          resp.headers = ajax.extractHeaders()          
           resp.status = $this.status
           resp.body = $this.responseText
           resolve(resp)
         else:
           var resp = Response()
+          resp.headers = ajax.extractHeaders()
           resp.status = $this.status
           resp.body = $this.responseText
           resolve(resp)
-
-    ajax.send(body) 
-
+          
+    ajax.send(body)
+    
 
 proc newHttpClient*(userAgent = defUserAgent, maxRedirects = 5, timeout = -1): HttpClient =
   new result
@@ -100,8 +115,6 @@ var newAsyncHttpClient* = newHttpClient
   
 proc body*(response: Response): Future[string] {.async.} =
   result = response.body
-
     
 proc get*(client: HttpClient | AsyncHttpClient, url: string): Future[Response] {.async.}=
   result = await request(client, url, $HttpGet, headers=client.headers)
-
