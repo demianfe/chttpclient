@@ -105,11 +105,9 @@ proc request*(client: HttpClient | AsyncHttpClient, url: string,
 
 proc newHttpClient*(userAgent = defUserAgent, maxRedirects = 5, timeout = -1): HttpClient =
   new result
-  result.headers = newHttpHeaders()
   result.userAgent = userAgent
   result.maxRedirects = maxRedirects
   result.timeout = timeout
-
 
 var newAsyncHttpClient* = newHttpClient
   
